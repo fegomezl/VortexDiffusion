@@ -6,8 +6,8 @@
 # s       (seconds)
 
 #Mesh Parameters:
-Lx = 10                 	  #Size_x(cm)
-Ly = 40                  	  #Size_y(cm)
+Lx = 20                 	  #Size_x(cm)
+Ly = 20                  	  #Size_y(cm)
 
 #Simulation parameters:
 DT = 0.001         #Dt(s)
@@ -25,8 +25,8 @@ RELT_SUN = 1E-5        #Relative_Tolerance(SUNDIALS)
 EPSILON  = 1E-9        #nEpsilon
 
 #Vortex conditions:
-Rx = 5				   #Position_x(cm)
-Ry = 5				   #Position_y(cm)
+Rx = 10				   #Position_x(cm)
+Ry = 10				   #Position_y(cm)
 STD = 2                #Standard_deviation(cm)
 INT = 10			   #Intensity(cm²/s)
 VISC = 0.15			   #Viscosity(cm²/s)

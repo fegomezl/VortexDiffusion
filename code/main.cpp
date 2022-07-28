@@ -189,7 +189,20 @@ class EvolutionOperator : public TimeDependentOperator{
             Z.SetSize(fespaceH1->GetTrueVSize()); Z = 0.;
 
             //Set boundary dofs
-            Array<int> ess_bdr(pmesh->bdr_attributes.Max()); ess_bdr = 1;
+            /****
+             * Define essential boundary conditions
+             *                 2
+             *         /---------------\
+             *         |               |
+             *         |               |
+             *       3 |               | 1
+             *         |               | 
+             *         |               |
+             *         \---------------/
+             *                 0         
+             ****/
+            Array<int> ess_bdr(pmesh->bdr_attributes.Max()); 
+            ess_bdr = 1; ess_bdr[3] = 0;
 
             //Set initial and boundary conditions
             FunctionCoefficient initial_vorticity([=](const Vector &x){
