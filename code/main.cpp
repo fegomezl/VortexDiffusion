@@ -171,20 +171,25 @@ class EvolutionOperator : public TimeDependentOperator{
             fecH1_v = new H1_FECollection(config.order, pmesh->Dimension());
             fespaceH1_v = new ParFiniteElementSpace(pmesh, fecH1_v, pmesh->Dimension());
             
+            //Initialize operator
             height = width = fespaceH1->GetTrueVSize();
             t = 0.;
             type = EXPLICIT;
             eval_mode = NORMAL;
 
+            //Initialize ODE solver
+            ode_solver = new ForwardEulerSolver;
+            ode_solver->Init(*this);
+
             //Initialize variables
             vorticity.SetSpace(fespaceH1); vorticity = 0.;
             velocity.SetSpace(fespaceH1_v); velocity = 0.;
 
+            Vorticity.SetSize(fespaceH1->GetTrueVSize()); Vorticity = 0.;
             Z.SetSize(fespaceH1->GetTrueVSize()); Z = 0.;
 
             //Set boundary dofs
             Array<int> ess_bdr(pmesh->bdr_attributes.Max()); ess_bdr = 1;
-
 
             //Set initial and boundary conditions
             FunctionCoefficient initial_vorticity([=](const Vector &x){
@@ -196,6 +201,8 @@ class EvolutionOperator : public TimeDependentOperator{
            
             vorticity.ProjectCoefficient(initial_vorticity);
             vorticity.ProjectBdrCoefficient(Zero, ess_bdr);
+            vorticity.GetTrueDofs(Vorticity);
+
             velocity.ProjectCoefficient(Zero_v);
 
             //Coefficients
@@ -231,8 +238,10 @@ class EvolutionOperator : public TimeDependentOperator{
         };
 
         //Update of the solver on each iteration
+        void Step(double &t, double &dt){
+            ode_solver->Step(Vorticity, t, dt);
+        }
         //void SetParameters();
-        //void TimeStep(double &t, double &dt);
 
         //Time-evolving functions
         virtual void Mult(const Vector &X, Vector &dX_dt) const {
@@ -244,6 +253,7 @@ class EvolutionOperator : public TimeDependentOperator{
 	    //virtual int SUNImplicitSolve(const Vector &X, Vector &X_new, double tol);
         
         ParGridFunction *GetVorticity() {return &vorticity;}
+        void UpdateVorticity() {vorticity.SetFromTrueDofs(Vorticity);}
         ParGridFunction *GetVelocity() {return &velocity;}
 
         virtual ~EvolutionOperator(){
@@ -265,10 +275,14 @@ class EvolutionOperator : public TimeDependentOperator{
         FiniteElementCollection *fecH1 = NULL, *fecH1_v = NULL;
         ParFiniteElementSpace *fespaceH1 = NULL, *fespaceH1_v = NULL;
 
+        //ODE parameters
+        ODESolver *ode_solver = NULL;
+
         //Auxiliar grid functions
         ParGridFunction vorticity, velocity;
 
-        mutable HypreParVector Z;
+        Vector Vorticity;
+        mutable Vector Z;
 
         HypreParMatrix *M = NULL, *K = NULL;
 
@@ -351,12 +365,8 @@ int main(int argc, char *argv[]){
     //Initialize operator
     EvolutionOperator evo_oper(config, pmesh);
 
-    ODESolver *ode_solver = new ForwardEulerSolver;
-    ode_solver->Init(evo_oper);
-
     ParGridFunction *vorticity = evo_oper.GetVorticity();
     ParGridFunction *velocity = evo_oper.GetVelocity();
-    Vector Vorticity; vorticity->GetTrueDofs(Vorticity);
 
     //Open the paraview output and print initial state
     string folder = "results/graph"; 
@@ -405,7 +415,7 @@ int main(int argc, char *argv[]){
         dt = min(dt, config.t_final - t);
         
         //Perform the time_step
-        ode_solver->Step(Vorticity, t, dt);
+        evo_oper.Step(t, dt);
         
         //Update visualization steps
         vis_steps = (dt == config.dt_init) ? config.vis_steps_max : int((config.dt_init/dt)*config.vis_steps_max);
@@ -415,9 +425,9 @@ int main(int argc, char *argv[]){
             //Update parameters
             vis_iteration = 0;
             vis_print++;
-        
+
             //Update information
-            vorticity->Distribute(Vorticity);
+            evo_oper.UpdateVorticity();
         
             //Print fields
             paraview.SetCycle(vis_print);
@@ -442,7 +452,6 @@ int main(int argc, char *argv[]){
 
     //Free memory
     delete pmesh;
-    delete ode_solver;
 
     return 0;
 }
