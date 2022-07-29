@@ -168,9 +168,6 @@ class EvolutionOperator : public TimeDependentOperator{
             fecH1 = new H1_FECollection(config.order, pmesh->Dimension());
             fespaceH1 = new ParFiniteElementSpace(pmesh, fecH1);
             
-            fecH1_v = new H1_FECollection(config.order, pmesh->Dimension());
-            fespaceH1_v = new ParFiniteElementSpace(pmesh, fecH1_v, pmesh->Dimension());
-            
             //Initialize operator
             height = width = fespaceH1->GetTrueVSize();
             t = 0.;
@@ -183,15 +180,15 @@ class EvolutionOperator : public TimeDependentOperator{
 
             //Initialize variables
             vorticity.SetSpace(fespaceH1); vorticity = 0.;
-            velocity.SetSpace(fespaceH1_v); velocity = 0.;
-            vorticity_v.SetSpace(fespaceH1_v); vorticity_v = 0.;
-            velocity_v.SetSpace(fespaceH1_v); velocity_v = 0.;
+            velocity_0.SetSpace(fespaceH1); velocity_0 = 0.;
+            velocity_1.SetSpace(fespaceH1); velocity_1 = 0.;
 
             Vorticity.SetSize(fespaceH1->GetTrueVSize()); Vorticity = 0.;
+            Velocity_0.SetSize(fespaceH1->GetTrueVSize()); Velocity_0 = 0.;
+            Velocity_1.SetSize(fespaceH1->GetTrueVSize()); Velocity_1 = 0.;
             Z.SetSize(fespaceH1->GetTrueVSize()); Z = 0.;
-            Velocity.SetSize(fespaceH1_v->GetTrueVSize()); Velocity = 0.;
-            Vorticity_v.SetSize(fespaceH1_v->GetTrueVSize()); Vorticity_v = 0.;
-            B.SetSize(fespaceH1_v->GetTrueVSize()); B = 0.;
+            B_0.SetSize(fespaceH1->GetTrueVSize()); B_0 = 0.;
+            B_1.SetSize(fespaceH1->GetTrueVSize()); B_1 = 0.;
 
             //Set boundary dofs
             /****
@@ -206,36 +203,30 @@ class EvolutionOperator : public TimeDependentOperator{
              *         \---------------/
              *                 0         
              ****/
-            ess_bdr.SetSize(pmesh->bdr_attributes.Max()); 
+            Array<int> ess_tdof;
+            Array<int> ess_bdr(pmesh->bdr_attributes.Max()); 
             ess_bdr = 1; ess_bdr[3] = 0;
             fespaceH1->GetEssentialTrueDofs(ess_bdr, ess_tdof);
-            fespaceH1_v->GetEssentialTrueDofs(ess_bdr, ess_tdof_v);
 
             //Set initial and boundary conditions
             FunctionCoefficient initial_vorticity([=](const Vector &x){
                     return (config.Gamma/(M_PI*pow(config.Sigma, 2)))*exp(-pow(hypot(x(0)-config.Rx, x(1)-config.Ry)/config.Sigma, 2));
                     }); 
             ConstantCoefficient Zero(0.);
-            Vector zero_v(pmesh->Dimension()); zero_v = 0.;
-            VectorConstantCoefficient Zero_v(zero_v);
            
             vorticity.ProjectCoefficient(initial_vorticity);
             vorticity.ProjectBdrCoefficient(Zero, ess_bdr);
             vorticity.GetTrueDofs(Vorticity);
 
-            velocity.ProjectCoefficient(Zero_v);
-            velocity.GetTrueDofs(Velocity);
-
             //Coefficients
             FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
             FunctionCoefficient coeff_nu_r([=](const Vector &x){return config.Viscosity*x(0);});
-            FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
-            VectorFunctionCoefficient coeff_inv_r_hat(pmesh->Dimension(), [=](const Vector &x, Vector &f){
-                    f = 0.;
-                    f(0) = pow(x(0)+config.Epsilon, -1);
-                    });
+            FunctionCoefficient coeff_neg_r([](const Vector &x){return -x(0);});
 
-            //Create bilinear forms for vorticity evolution
+            FunctionCoefficient coeff_inv_r([=](const Vector &x){return pow(x(0)+config.Epsilon, -1);});
+            FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
+
+            //Create bilinear forms
             ParBilinearForm m(fespaceH1);
             m.AddDomainIntegrator(new MassIntegrator(coeff_r));
             m.Assemble();
@@ -251,6 +242,36 @@ class EvolutionOperator : public TimeDependentOperator{
             k.Finalize();
             K = k.ParallelAssemble();
 
+            ParBilinearForm c0(fespaceH1);
+            c0.AddDomainIntegrator(new DiffusionIntegrator(coeff_r));
+            c0.AddDomainIntegrator(new MassIntegrator(coeff_inv_r));
+            c0.Assemble();
+            c0.EliminateEssentialBC(ess_bdr);
+            c0.Finalize();
+            C0 = c0.ParallelAssemble();
+            C0_e = c0.ParallelAssembleElim();
+
+            ParBilinearForm c1(fespaceH1);
+            c1.AddDomainIntegrator(new DiffusionIntegrator(coeff_r));
+            c1.Assemble();
+            c1.EliminateEssentialBC(ess_bdr);
+            c1.Finalize();
+            C1 = c1.ParallelAssemble();
+            C1_e = c1.ParallelAssembleElim();
+
+            ParBilinearForm d0(fespaceH1);
+            d0.AddDomainIntegrator(new DerivativeIntegrator(coeff_neg_r, 1));
+            d0.AddDomainIntegrator(new MassIntegrator);
+            d0.Assemble();
+            d0.Finalize();
+            D0 = d0.ParallelAssemble(); 
+
+            ParBilinearForm d1(fespaceH1);
+            d1.AddDomainIntegrator(new DerivativeIntegrator(coeff_r, 0));
+            d1.Assemble();
+            d1.Finalize();
+            D1 = d1.ParallelAssemble(); 
+
             M_prec.SetPrintLevel(0);
             M_solver.SetPrintLevel(0);
             M_solver.SetPreconditioner(M_prec);
@@ -261,27 +282,6 @@ class EvolutionOperator : public TimeDependentOperator{
             M_solver.SetOperator(*M); 
             M_prec.SetOperator(*M);
 
-            //Create bilinear forms for velocity solver
-            ParBilinearForm c(fespaceH1_v);
-            c.AddDomainIntegrator(new VectorDiffusionIntegrator(coeff_r));
-            c.AddDomainIntegrator(new VectorMassIntegrator(coeff_inv_r_hat));
-            c.Assemble();
-            c.EliminateEssentialBC(ess_bdr);
-            c.Finalize();
-            C = c.ParallelAssemble();
-
-            ParMixedBilinearForm d0(fespaceH1, fespaceH1_v);
-            d0.AddDomainIntegrator(new GradientIntegrator(coeff_r));
-            d0.Assemble();
-            d0.Finalize();
-            D0 = d0.ParallelAssemble();
-
-            ParBilinearForm d1(fespaceH1_v);
-            d1.AddDomainIntegrator(new VectorMassIntegrator);
-            d1.Assemble();
-            d1.Finalize();
-            D1 = d1.ParallelAssemble();
-
             C_prec.SetPrintLevel(0);
             C_solver.SetPrintLevel(0);
             C_solver.SetPreconditioner(C_prec);
@@ -289,38 +289,31 @@ class EvolutionOperator : public TimeDependentOperator{
             C_solver.SetAbsTol(config.abstol_solver);
             C_solver.SetMaxIter(config.iter_solver);
 
-            C_solver.SetOperator(*C); 
-            C_prec.SetOperator(*C);
+            //Get Initial Velocity
+            D0->Mult(Vorticity, B_0);
+            C0->EliminateBC(*C0_e, ess_tdof, Velocity_0, B_0);
+            C_solver.SetOperator(*C0);
+            C_prec.SetOperator(*C0);
+            C_solver.Mult(B_0, Velocity_0);
 
-            //Calculate initial velocity
-            SolveVelocity();
+            D1->Mult(Vorticity, B_1);
+            C1->EliminateBC(*C1_e, ess_tdof, Velocity_1, B_1);
+            C_solver.SetOperator(*C1);
+            C_prec.SetOperator(*C1);
+            C_solver.Mult(B_1, Velocity_1);
         };
 
         //Update of the solver on each iteration
-        void SolveVelocity(){
-            vorticity.SetFromTrueDofs(Vorticity);
-            VectorArrayCoefficient coeff_vorticity_v(pmesh->Dimension());
-            coeff_vorticity_v.Set(0, new GridFunctionCoefficient(&vorticity), true);
-            vorticity_v.ProjectCoefficient(coeff_vorticity_v);
-            vorticity_v.GetTrueDofs(Vorticity_v);
-
-            B = 0.;
-            D0->Mult(1., Vorticity, 1., B);
-            D1->Mult(1., Vorticity_v, 1., B);
-            B.SetSubVector(ess_tdof_v, 0.);
-            C_solver.Mult(B, Velocity);
-
-            velocity_v.SetFromTrueDofs(Velocity);
-            VectorGridFunctionCoefficient coeff_velocity(&velocity_v);
-            MatrixFunctionCoefficient coeff_rot(pmesh->Dimension(), [](const Vector &x, DenseMatrix &f){ f = 0.; f(0,1) = -1.; f(1,0) = 1.;});
-            MatrixVectorProductCoefficient coeff_true_velocity(coeff_rot, coeff_velocity);
-            velocity.ProjectCoefficient(coeff_true_velocity);
-            velocity.GetTrueDofs(Velocity);
-        }
         void Step(double &t, double &dt){
             ode_solver->Step(Vorticity, t, dt);
-            SolveVelocity();
+            //SolveVelocity();
         }
+        //void SolveVelocity(){
+        //    Vorticity_v.GetBlock(0) = Vorticity;
+        //    D->Mult(Vorticity_v, B);
+        //    C_solver.Mult(B, Velocity);
+        //}
+        //void SetParameters();
 
         //Time-evolving functions
         virtual void Mult(const Vector &X, Vector &dX_dt) const {
@@ -328,23 +321,31 @@ class EvolutionOperator : public TimeDependentOperator{
             K->Mult(-1., X, 1., Z);
             M_solver.Mult(Z, dX_dt);
         }
+        //virtual int SUNImplicitSetup(const Vector &X, const Vector &RHS, int j_update, int *j_status, double scaled_dt);
+	    //virtual int SUNImplicitSolve(const Vector &X, Vector &X_new, double tol);
         
         ParGridFunction *GetVorticity() {return &vorticity;}
-        ParGridFunction *GetVelocity() {return &velocity;}
-        void UpdateVorticity() {vorticity.SetFromTrueDofs(Vorticity);}
-        void UpdateVelocity() {velocity.SetFromTrueDofs(Velocity);}
+        ParGridFunction *GetVelocity_0() {return &velocity_0;}
+        ParGridFunction *GetVelocity_1() {return &velocity_1;}
+
+        void UpdateVorticity() {
+            vorticity.SetFromTrueDofs(Vorticity);
+        }
+        void UpdateVelocity() {
+            velocity_0.SetFromTrueDofs(Velocity_0);
+            velocity_1.SetFromTrueDofs(Velocity_1);
+        }
 
         virtual ~EvolutionOperator(){
             delete fecH1;
-            delete fecH1_v;
             delete fespaceH1;
-            delete fespaceH1_v;
-
-            delete ode_solver;
 
             delete M;
             delete K;
-            delete C;
+            delete C0;
+            delete C1;
+            delete C0_e;
+            delete C1_e;
             delete D0;
             delete D1;
         };
@@ -355,24 +356,24 @@ class EvolutionOperator : public TimeDependentOperator{
 
         //FEM parameters
         ParMesh *pmesh = NULL;
-        FiniteElementCollection *fecH1 = NULL, *fecH1_v = NULL;
-        ParFiniteElementSpace *fespaceH1 = NULL, *fespaceH1_v = NULL;
-
-        Array<int> ess_bdr;
-        Array<int> ess_tdof;
-        Array<int> ess_tdof_v;
+        FiniteElementCollection *fecH1 = NULL;
+        ParFiniteElementSpace *fespaceH1 = NULL;
 
         //ODE parameters
         ODESolver *ode_solver = NULL;
 
         //Auxiliar grid functions
-        ParGridFunction vorticity, velocity, vorticity_v, velocity_v;
+        ParGridFunction vorticity, velocity_0, velocity_1;
 
-        Vector Vorticity, Velocity, Vorticity_v;
-        mutable Vector Z, B;
+        Vector Vorticity, Velocity_0, Velocity_1;
+        Vector B_0, B_1;
+        mutable Vector Z;
 
-        HypreParMatrix *M = NULL, *K = NULL, *C = NULL;
-        HypreParMatrix *D0 = NULL, *D1 = NULL;
+        HypreParMatrix *M = NULL, *K = NULL;
+
+        HypreParMatrix *C0 = NULL, *C0_e = NULL;
+        HypreParMatrix *C1 = NULL, *C1_e = NULL;
+        HypreParMatrix *D0 = NULL, *D1   = NULL;
 
         HyprePCG M_solver, C_solver;
         HypreBoomerAMG M_prec, C_prec;
@@ -453,8 +454,9 @@ int main(int argc, char *argv[]){
     //Initialize operator
     EvolutionOperator evo_oper(config, pmesh);
 
-    ParGridFunction *vorticity = evo_oper.GetVorticity(); evo_oper.UpdateVorticity();
-    ParGridFunction *velocity = evo_oper.GetVelocity(); evo_oper.UpdateVelocity();
+    ParGridFunction *vorticity = evo_oper.GetVorticity();
+    ParGridFunction *velocity_0 = evo_oper.GetVelocity_0();
+    ParGridFunction *velocity_1 = evo_oper.GetVelocity_1();
 
     //Open the paraview output and print initial state
     string folder = "results/graph"; 
@@ -462,7 +464,8 @@ int main(int argc, char *argv[]){
     paraview.SetDataFormat(VTKFormat::BINARY);
     paraview.SetLevelsOfDetail(config.order);
     paraview.RegisterField("Vorticity", vorticity);
-    paraview.RegisterField("Velocity", velocity);
+    paraview.RegisterField("Velocity_0", velocity_0);
+    paraview.RegisterField("Velocity_1", velocity_1);
     paraview.SetCycle(0);
     paraview.SetTime(0);
     paraview.Save();

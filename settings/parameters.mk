@@ -11,7 +11,7 @@ Ly = 20                  	  #Size_y(cm)
 
 #Simulation parameters:
 DT = 0.001         #Dt(s)
-T_FI = 10           #Final_time(s)
+T_FI = 1           #Final_time(s)
 VIS = 100            #Visualization_steps
 
 #FE parameters:
