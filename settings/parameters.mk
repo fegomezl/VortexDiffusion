@@ -10,9 +10,9 @@ Lx = 20                 	  #Size_x(cm)
 Ly = 20                  	  #Size_y(cm)
 
 #Simulation parameters:
-DT = 0.001         #Dt(s)
-T_FI = 1           #Final_time(s)
-VIS = 100            #Visualization_steps
+DT = 5         #Dt(s)
+T_FI = 100           #Final_time(s)
+VIS = 0            #Visualization_steps
 
 #FE parameters:
 REF      = 4           #Refinements

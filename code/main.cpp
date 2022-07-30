@@ -162,7 +162,7 @@ class EvolutionOperator : public TimeDependentOperator{
         EvolutionOperator(Config config, ParMesh *pmesh):
             config(config),
             pmesh(pmesh),
-            M_solver(MPI_COMM_WORLD), C_solver(MPI_COMM_WORLD)
+            M_solver(MPI_COMM_WORLD), T_solver(MPI_COMM_WORLD), C_solver(MPI_COMM_WORLD)
         {
             //Create finite element spaces
             fecH1 = new H1_FECollection(config.order, pmesh->Dimension());
@@ -174,12 +174,15 @@ class EvolutionOperator : public TimeDependentOperator{
             //Initialize operator
             height = width = fespaceH1->GetTrueVSize();
             t = 0.;
-            type = EXPLICIT;
+            type = IMPLICIT;
             eval_mode = NORMAL;
 
             //Initialize ODE solver
-            ode_solver = new ForwardEulerSolver;
+            ode_solver = new CVODESolver(MPI_COMM_WORLD, CV_BDF);
             ode_solver->Init(*this);
+            ode_solver->SetSStolerances(1E-5, 1E-5);
+            ode_solver->SetMaxStep(config.dt_init);
+            ode_solver->SetStepMode(CV_ONE_STEP);
 
             //Initialize variables
             vorticity.SetSpace(fespaceH1); vorticity = 0.;
@@ -261,6 +264,13 @@ class EvolutionOperator : public TimeDependentOperator{
             M_solver.SetOperator(*M); 
             M_prec.SetOperator(*M);
 
+            T_prec.SetPrintLevel(0);
+            T_solver.SetPrintLevel(0);
+            T_solver.SetPreconditioner(T_prec);
+            T_solver.SetTol(config.reltol_solver);
+            T_solver.SetAbsTol(config.abstol_solver);
+            T_solver.SetMaxIter(config.iter_solver);
+
             //Create bilinear forms for velocity solver
             ParBilinearForm c(fespaceH1_v);
             c.AddDomainIntegrator(new VectorDiffusionIntegrator(coeff_r));
@@ -328,6 +338,23 @@ class EvolutionOperator : public TimeDependentOperator{
             K->Mult(-1., X, 1., Z);
             M_solver.Mult(Z, dX_dt);
         }
+        //Setup the ODE Jacobian T = M + dt*K
+        int SUNImplicitSetup(const Vector &X, const Vector &RHS, int j_update, int *j_status, double scaled_dt){
+            if (T) delete T;
+            T = Add(1., *M, scaled_dt, *K);
+            T_prec.SetOperator(*T);
+            T_solver.SetOperator(*T);
+            *j_status = 1;
+            return 0;
+        }
+        //From  M(dX_dt) + K(X) = 0
+        //Solve M(X_new - X) + dt*K(X_new) = 0 for X_new
+        int SUNImplicitSolve(const Vector &X, Vector &X_new, double tol){
+            Z = 0.; X_new = X;
+            M->Mult(X, Z);          
+            T_solver.Mult(Z, X_new);
+            return 0; 
+        }
         
         ParGridFunction *GetVorticity() {return &vorticity;}
         ParGridFunction *GetVelocity() {return &velocity;}
@@ -344,6 +371,7 @@ class EvolutionOperator : public TimeDependentOperator{
 
             delete M;
             delete K;
+            delete T;
             delete C;
             delete D0;
             delete D1;
@@ -363,7 +391,7 @@ class EvolutionOperator : public TimeDependentOperator{
         Array<int> ess_tdof_v;
 
         //ODE parameters
-        ODESolver *ode_solver = NULL;
+        CVODESolver *ode_solver = NULL;
 
         //Auxiliar grid functions
         ParGridFunction vorticity, velocity, vorticity_v, velocity_v;
@@ -371,11 +399,11 @@ class EvolutionOperator : public TimeDependentOperator{
         Vector Vorticity, Velocity, Vorticity_v;
         mutable Vector Z, B;
 
-        HypreParMatrix *M = NULL, *K = NULL, *C = NULL;
-        HypreParMatrix *D0 = NULL, *D1 = NULL;
+        HypreParMatrix *M = NULL, *K = NULL, *T = NULL;
+        HypreParMatrix *C = NULL, *D0 = NULL, *D1 = NULL;
 
-        HyprePCG M_solver, C_solver;
-        HypreBoomerAMG M_prec, C_prec;
+        HyprePCG M_solver, T_solver, C_solver;
+        HypreBoomerAMG M_prec, T_prec, C_prec;
 
 };
 
