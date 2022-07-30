@@ -16,6 +16,7 @@ int main(int argc, char *argv[]){
 
     //Initialize operator and fields
     EvolutionOperator evo_oper(config, pmesh);
+    evo_oper.Setup();
 
     ParGridFunction *vorticity = evo_oper.GetVorticity(); evo_oper.UpdateVorticity();
     ParGridFunction *velocity = evo_oper.GetVelocity(); evo_oper.UpdateVelocity();

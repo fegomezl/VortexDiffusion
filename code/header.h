@@ -53,6 +53,7 @@ class EvolutionOperator : public TimeDependentOperator{
     public:
         //Initialization of the solver
         EvolutionOperator(Config config, ParMesh *pmesh);
+        void Setup();
 
         //Update of the solver on each iteration
         void Step(double &t, double &dt);
@@ -90,7 +91,7 @@ class EvolutionOperator : public TimeDependentOperator{
         //Linear variables
         ParGridFunction vorticity, velocity, vorticity_v, velocity_v;
 
-        Vector Vorticity, Velocity, Vorticity_v;
+        Vector Vorticity, Velocity, Vorticity_v, Velocity_v;
         mutable Vector Z, B;
 
         //Bilinear variables
