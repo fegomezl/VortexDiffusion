@@ -35,7 +35,7 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
     //Initialize ODE solver
     ode_solver = new CVODESolver(MPI_COMM_WORLD, CV_BDF);
     ode_solver->Init(*this);
-    ode_solver->SetSStolerances(1E-5, 1E-5);
+    ode_solver->SetSStolerances(config.reltol_sundials, config.abstol_sundials);
     ode_solver->SetMaxStep(config.dt_init);
     ode_solver->SetStepMode(CV_ONE_STEP);
 
@@ -43,23 +43,23 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
     C_prec.SetPrintLevel(0);
     C_solver.SetPrintLevel(0);
     C_solver.SetPreconditioner(C_prec);
-    C_solver.SetTol(config.reltol_solver);
-    C_solver.SetAbsTol(config.abstol_solver);
-    C_solver.SetMaxIter(config.iter_solver);
+    C_solver.SetTol(config.reltol_velocity);
+    C_solver.SetAbsTol(config.abstol_velocity);
+    C_solver.SetMaxIter(config.iter_velocity);
 
     M_prec.SetPrintLevel(0);
     M_solver.SetPrintLevel(0);
     M_solver.SetPreconditioner(M_prec);
-    M_solver.SetTol(config.reltol_solver);
-    M_solver.SetAbsTol(config.abstol_solver);
-    M_solver.SetMaxIter(config.iter_solver);
+    M_solver.SetTol(config.reltol_explicit);
+    M_solver.SetAbsTol(config.abstol_explicit);
+    M_solver.SetMaxIter(config.iter_explicit);
 
     T_prec.SetPrintLevel(0);
     T_solver.SetPrintLevel(0);
     T_solver.SetPreconditioner(T_prec);
-    T_solver.SetTol(config.reltol_solver);
-    T_solver.SetAbsTol(config.abstol_solver);
-    T_solver.SetMaxIter(config.iter_solver);
+    T_solver.SetTol(config.reltol_implicit);
+    T_solver.SetAbsTol(config.abstol_implicit);
+    T_solver.SetMaxIter(config.iter_implicit);
 };
 
 void EvolutionOperator::Setup(){

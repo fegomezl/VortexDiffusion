@@ -27,12 +27,24 @@ Config::Config(int pid, int nproc, int argc, char *argv[], bool &exit, string pr
                    "Number of total uniform refinements.");
     args.AddOption(&order, "-o", "--order",
                    "Finite element order (polynomial degree) or -1 for isoparametric space.");
-    args.AddOption(&abstol_solver, "-abstol_s", "--abstol_s",
-                   "Absolute tolerance of solver.");
-    args.AddOption(&reltol_solver, "-reltol_s", "--reltol_s",
-                   "Relative tolerance of solver.");
-    args.AddOption(&iter_solver, "-iter_s", "--iter_s",
-                   "Iterations of solver.");
+    args.AddOption(&abstol_explicit, "-abstol_ex", "--abstol_ex",
+                   "Absolute tolerance of explicit solver.");
+    args.AddOption(&reltol_explicit, "-reltol_ex", "--reltol_ex",
+                   "Relative tolerance of explicit solver.");
+    args.AddOption(&iter_explicit, "-iter_ex", "--iter_ex",
+                   "Iterations of explicit solver.");
+    args.AddOption(&abstol_implicit, "-abstol_im", "--abstol_im",
+                   "Absolute tolerance of implicit solver.");
+    args.AddOption(&reltol_implicit, "-reltol_im", "--reltol_im",
+                   "Relative tolerance of implicit solver.");
+    args.AddOption(&iter_implicit, "-iter_im", "--iter_im",
+                   "Iterations of implicit solver.");
+    args.AddOption(&abstol_velocity, "-abstol_vel", "--abstol_vel",
+                   "Absolute tolerance of velocity solver.");
+    args.AddOption(&reltol_velocity, "-reltol_vel", "--reltol_vel",
+                   "Relative tolerance of velocity solver.");
+    args.AddOption(&iter_velocity, "-iter_vel", "--iter_vel",
+                   "Iterations of velocity solver.");
     args.AddOption(&abstol_sundials, "-abstol_sun", "--abstol_sun",
                    "Absolute tolerance of SUNDIALS.");
     args.AddOption(&reltol_sundials, "-reltol_sun", "--reltol_sun",

@@ -16,7 +16,10 @@ main: main.x
 	@echo -e 'Running program ... \n'
 	@$(RUN)$< -Lx $(Lx) -Ly $(Ly) \
 		      -dt $(DT) -t_f $(T_FI) -v_s $(VIS) \
-			  -ref $(REF) -o $(ORDER) -abstol_s $(ABST_S) -reltol_s $(RELT_S) -iter_s $(ITER_S) \
+			  -ref $(REF) -o $(ORDER) \
+			  -abstol_ex $(ABST_EX) -reltol_ex $(RELT_EX) -iter_ex $(ITER_EX) \
+			  -abstol_im $(ABST_IM) -reltol_im $(RELT_IM) -iter_im $(ITER_IM) \
+			  -abstol_vel $(ABST_VEL) -reltol_vel $(RELT_VEL) -iter_vel $(ITER_VEL) \
 			  -abstol_sun $(ABST_SUN) -reltol_sun $(RELT_SUN) -eps $(EPSILON) \
 			  -Rx $(Rx) -Ry $(Ry) -sigma $(STD) -gamma $(INT) -visc $(VISC)
 	@echo -e '\n\nDone!\n'

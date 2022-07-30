@@ -29,9 +29,15 @@ struct Config{
     //FEM parameters
     int refinements;
     int order;
-    double reltol_solver;
-    double abstol_solver;
-    int iter_solver;
+    double reltol_explicit;
+    double abstol_explicit;
+    int iter_explicit;
+    double reltol_implicit;
+    double abstol_implicit;
+    int iter_implicit;
+    double reltol_velocity;
+    double abstol_velocity;
+    int iter_velocity;
     double reltol_sundials;
     double abstol_sundials;
     double Epsilon;

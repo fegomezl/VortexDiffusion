@@ -10,7 +10,6 @@ int main(int argc, char *argv[]){
     string settings_print = "results/settings.txt";
     string paraview_print = "results/graph";
     string progress_print = "results/progress.txt";
-    string integral_print = "results/integral.txt";
 
     Config config(Mpi::WorldRank(), Mpi::WorldSize(), argc, argv, exit, settings_print);
     if (exit) return 1.;
@@ -79,23 +78,6 @@ int main(int argc, char *argv[]){
             << t*config.T_scale  << setw(12)
             << "0%" << "\n";
         out.close();
-
-        out.open(integral_print, std::ios::trunc);
-        out << left << setw(12)
-            << "Time(s)" << setw(12)
-            << "I(cm2/s)" << setw(12)
-            << "Ir(cm3/s)" << setw(12)
-            << "Iz(cm3/s)" << setw(12)
-            << "Ir2(cm4/s)" << setw(12)
-            << "Iz2(cm4/s)" << "\n"
-            << left << setw(12)
-            << 0 << setw(12)
-            << 0 << setw(12)
-            << 0 << setw(12)
-            << 0 << setw(12)
-            << 0 << setw(12)
-            << 0 << "\n";
-        out.close();
     }
 
     for (iteration = 1, vis_iteration = 1; !last; iteration++, vis_iteration++){
@@ -147,16 +129,6 @@ int main(int argc, char *argv[]){
                 << dt*config.T_scale << setw(12)
                 << t*config.T_scale  << setw(12)
                 << progress << "\n";
-            out.close();
-            
-            out.open(integral_print, std::ios::app);
-            out << left << setw(12)
-                << t*config.T_scale << setw(12)
-                << 0 << setw(12)
-                << 0 << setw(12)
-                << 0 << setw(12)
-                << 0 << setw(12)
-                << 0 << "\n";
             out.close();
         }
     }
