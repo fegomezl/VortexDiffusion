@@ -231,46 +231,11 @@ class EvolutionOperator : public TimeDependentOperator{
 
             //Coefficients
             FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
-            FunctionCoefficient coeff_nu_r([=](const Vector &x){return config.Viscosity*x(0);});
-            FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
             VectorFunctionCoefficient coeff_inv_r_hat(pmesh->Dimension(), [=](const Vector &x, Vector &f){
                     f = 0.;
                     f(0) = pow(x(0)+config.Epsilon, -1);
                     });
-
-            //Create bilinear forms for vorticity evolution
-            ParBilinearForm m(fespaceH1);
-            m.AddDomainIntegrator(new MassIntegrator(coeff_r));
-            m.Assemble();
-            m.EliminateEssentialBC(ess_bdr);
-            m.Finalize();
-            M = m.ParallelAssemble();
-
-            ParBilinearForm k(fespaceH1);
-            k.AddDomainIntegrator(new DiffusionIntegrator(coeff_nu_r));
-            k.AddDomainIntegrator(new MassIntegrator(coeff_nu_inv_r));
-            k.Assemble();
-            k.EliminateEssentialBC(ess_bdr, Operator::DIAG_ZERO);
-            k.Finalize();
-            K = k.ParallelAssemble();
-
-            M_prec.SetPrintLevel(0);
-            M_solver.SetPrintLevel(0);
-            M_solver.SetPreconditioner(M_prec);
-            M_solver.SetTol(config.reltol_solver);
-            M_solver.SetAbsTol(config.abstol_solver);
-            M_solver.SetMaxIter(config.iter_solver);
-
-            M_solver.SetOperator(*M); 
-            M_prec.SetOperator(*M);
-
-            T_prec.SetPrintLevel(0);
-            T_solver.SetPrintLevel(0);
-            T_solver.SetPreconditioner(T_prec);
-            T_solver.SetTol(config.reltol_solver);
-            T_solver.SetAbsTol(config.abstol_solver);
-            T_solver.SetMaxIter(config.iter_solver);
-
+            
             //Create bilinear forms for velocity solver
             ParBilinearForm c(fespaceH1_v);
             c.AddDomainIntegrator(new VectorDiffusionIntegrator(coeff_r));
@@ -304,6 +269,31 @@ class EvolutionOperator : public TimeDependentOperator{
 
             //Calculate initial velocity
             SolveVelocity();
+
+            //Create bilinear forms for vorticity evolution
+            ParBilinearForm m(fespaceH1);
+            m.AddDomainIntegrator(new MassIntegrator(coeff_r));
+            m.Assemble();
+            m.EliminateEssentialBC(ess_bdr);
+            m.Finalize();
+            M = m.ParallelAssemble();
+
+            M_prec.SetPrintLevel(0);
+            M_solver.SetPrintLevel(0);
+            M_solver.SetPreconditioner(M_prec);
+            M_solver.SetTol(config.reltol_solver);
+            M_solver.SetAbsTol(config.abstol_solver);
+            M_solver.SetMaxIter(config.iter_solver);
+
+            M_solver.SetOperator(*M); 
+            M_prec.SetOperator(*M);
+
+            T_prec.SetPrintLevel(0);
+            T_solver.SetPrintLevel(0);
+            T_solver.SetPreconditioner(T_prec);
+            T_solver.SetRelTol(config.reltol_solver);
+            T_solver.SetAbsTol(config.abstol_solver);
+            T_solver.SetMaxIter(config.iter_solver);
         };
 
         //Update of the solver on each iteration
@@ -326,6 +316,17 @@ class EvolutionOperator : public TimeDependentOperator{
             MatrixVectorProductCoefficient coeff_true_velocity(coeff_rot, coeff_velocity);
             velocity.ProjectCoefficient(coeff_true_velocity);
             velocity.GetTrueDofs(Velocity);
+
+            FunctionCoefficient coeff_nu_r([=](const Vector &x){return config.Viscosity*x(0);});
+            FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
+            if(K) delete K;
+            ParBilinearForm k(fespaceH1);
+            k.AddDomainIntegrator(new DiffusionIntegrator(coeff_nu_r));
+            k.AddDomainIntegrator(new MassIntegrator(coeff_nu_inv_r));
+            k.Assemble();
+            k.EliminateEssentialBC(ess_bdr, Operator::DIAG_ZERO);
+            k.Finalize();
+            K = k.ParallelAssemble();
         }
         void Step(double &t, double &dt){
             ode_solver->Step(Vorticity, t, dt);
@@ -402,7 +403,8 @@ class EvolutionOperator : public TimeDependentOperator{
         HypreParMatrix *M = NULL, *K = NULL, *T = NULL;
         HypreParMatrix *C = NULL, *D0 = NULL, *D1 = NULL;
 
-        HyprePCG M_solver, T_solver, C_solver;
+        HyprePCG M_solver, C_solver;
+        GMRESSolver T_solver;
         HypreBoomerAMG M_prec, T_prec, C_prec;
 
 };
