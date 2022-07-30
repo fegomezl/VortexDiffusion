@@ -100,7 +100,7 @@ class EvolutionOperator : public TimeDependentOperator{
 
         //Solvers
         HyprePCG M_solver, C_solver;
-        GMRESSolver T_solver;
+        HypreGMRES T_solver;
         HypreBoomerAMG M_prec, T_prec, C_prec;
 };
 

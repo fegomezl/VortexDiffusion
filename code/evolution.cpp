@@ -57,7 +57,7 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
     T_prec.SetPrintLevel(0);
     T_solver.SetPrintLevel(0);
     T_solver.SetPreconditioner(T_prec);
-    T_solver.SetRelTol(config.reltol_solver);
+    T_solver.SetTol(config.reltol_solver);
     T_solver.SetAbsTol(config.abstol_solver);
     T_solver.SetMaxIter(config.iter_solver);
 };
