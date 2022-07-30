@@ -42,7 +42,7 @@ main.x: $(DEPENDENCIES)
 	@echo -e 'Done!\n'
 
 clean:
-	@rm -rf *.x results/graph/*
+	@rm -rf *.x results/graph/* results/*.txt
 
 oclean:
 	@rm -rf .objects/*.o
