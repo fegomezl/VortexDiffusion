@@ -19,7 +19,7 @@ main: main.x
 			  -ref $(REF) -o $(ORDER) -abstol_s $(ABST_S) -reltol_s $(RELT_S) -iter_s $(ITER_S) \
 			  -abstol_sun $(ABST_SUN) -reltol_sun $(RELT_SUN) -eps $(EPSILON) \
 			  -Rx $(Rx) -Ry $(Ry) -sigma $(STD) -gamma $(INT) -visc $(VISC)
-	@echo -e '\nDone!\n'
+	@echo -e '\n\nDone!\n'
 
 graph:
 ifeq ($(SHARE_DIR), NULL)
