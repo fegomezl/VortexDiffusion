@@ -317,12 +317,22 @@ class EvolutionOperator : public TimeDependentOperator{
             velocity.ProjectCoefficient(coeff_true_velocity);
             velocity.GetTrueDofs(Velocity);
 
+            //Update K matrix
+            FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
             FunctionCoefficient coeff_nu_r([=](const Vector &x){return config.Viscosity*x(0);});
             FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
+            VectorFunctionCoefficient coeff_neg_r_hat(pmesh->Dimension(), [](const Vector &x, Vector &f){
+                    f = 0.; f(0) = -1.;
+                    });
+            VectorGridFunctionCoefficient coeff_new_velocity(&velocity);
+            ScalarVectorProductCoefficient coeff_r_velocity(coeff_r, coeff_new_velocity);
+            InnerProductCoefficient coeff_neg_vr(coeff_neg_r_hat, coeff_new_velocity);
             if(K) delete K;
             ParBilinearForm k(fespaceH1);
             k.AddDomainIntegrator(new DiffusionIntegrator(coeff_nu_r));
             k.AddDomainIntegrator(new MassIntegrator(coeff_nu_inv_r));
+            k.AddDomainIntegrator(new ConvectionIntegrator(coeff_r_velocity));
+            k.AddDomainIntegrator(new MassIntegrator(coeff_neg_vr));
             k.Assemble();
             k.EliminateEssentialBC(ess_bdr, Operator::DIAG_ZERO);
             k.Finalize();
