@@ -7,11 +7,11 @@
 
 #Mesh Parameters:
 Lx = 20                 	  #Size_x(cm)
-Ly = 20                  	  #Size_y(cm)
+Ly = 40                  	  #Size_y(cm)
 
 #Simulation parameters:
-DT = 5         #Dt(s)
-T_FI = 100           #Final_time(s)
+DT = 0.5              #Dt(s)
+T_FI = 15           #Final_time(s)
 VIS = 0            #Visualization_steps
 
 #FE parameters:
@@ -33,6 +33,6 @@ EPSILON  = 1E-9        #nEpsilon
 #Vortex conditions:
 Rx = 10				   #Position_x(cm)
 Ry = 10				   #Position_y(cm)
-STD = 2                #Standard_deviation(cm)
-INT = 10			   #Intensity(cm²/s)
+STD = 1                #Standard_deviation(cm)
+INT = 100			   #Intensity(cm²/s)
 VISC = 0.15			   #Viscosity(cm²/s)
