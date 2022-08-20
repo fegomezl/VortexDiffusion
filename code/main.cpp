@@ -7,9 +7,9 @@ int main(int argc, char *argv[]){
 
     //Initialize program parameters
     bool exit = false;
-    string settings_print = "results/settings.txt";
+    string settings_print = "results/graph/settings.txt";
     string paraview_print = "results/graph";
-    string progress_print = "results/progress.txt";
+    string progress_print = "results/graph/progress.txt";
 
     Config config(Mpi::WorldRank(), Mpi::WorldSize(), argc, argv, exit, settings_print);
     if (exit) return 1.;
