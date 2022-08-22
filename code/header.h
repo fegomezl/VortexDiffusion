@@ -87,9 +87,8 @@ class EvolutionOperator : public TimeDependentOperator{
         FiniteElementCollection *fecH1 = NULL, *fecH1_v = NULL;
         ParFiniteElementSpace *fespaceH1 = NULL, *fespaceH1_v = NULL;
 
-        Array<int> ess_bdr;
-        Array<int> ess_tdof;
-        Array<int> ess_tdof_v;
+        Array<int> ess_bdr_w, ess_tdof_w;
+        Array<int> ess_bdr_v, ess_tdof_v;
 
         //ODE parameters
         CVODESolver *ode_solver = NULL;

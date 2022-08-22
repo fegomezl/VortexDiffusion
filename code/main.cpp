@@ -13,7 +13,7 @@ int main(int argc, char *argv[]){
 
     Config config(Mpi::WorldRank(), Mpi::WorldSize(), argc, argv, exit, settings_print);
     if (exit) return 1.;
-    config.Adimentionalize(config.Sigma*config.Sigma/config.Gamma, config.Sigma, settings_print);
+    //config.Adimentionalize(config.Sigma*config.Sigma/config.Gamma, config.Sigma, settings_print);
 
     //Create mesh
     ParMesh *pmesh = CreateMesh(config, settings_print);
@@ -59,8 +59,8 @@ int main(int argc, char *argv[]){
              << left << setw(12)
              << 0 << setw(12)
              << vis_print << setw(12)
-             << dt*config.T_scale << setw(12)
-             << t*config.T_scale  << setw(12)
+             << dt << setw(12)
+             << t << setw(12)
              << "0%" << "\r";
 
         ofstream out;
@@ -74,8 +74,8 @@ int main(int argc, char *argv[]){
             << left << setw(12)
             << 0 << setw(12)
             << vis_print << setw(12)
-            << dt*config.T_scale << setw(12)
-            << t*config.T_scale  << setw(12)
+            << dt << setw(12)
+            << t << setw(12)
             << "0%" << "\n";
         out.close();
     }
@@ -117,8 +117,8 @@ int main(int argc, char *argv[]){
             cout << left << setw(12)
                  << iteration << setw(12)
                  << vis_print << setw(12)
-                 << dt*config.T_scale << setw(12)
-                 << t*config.T_scale  << setw(12)
+                 << dt << setw(12)
+                 << t << setw(12)
                  << progress << "\r";
             
             ofstream out;
@@ -126,8 +126,8 @@ int main(int argc, char *argv[]){
             out << left << setw(12)
                 << iteration << setw(12)
                 << vis_print << setw(12)
-                << dt*config.T_scale << setw(12)
-                << t*config.T_scale  << setw(12)
+                << dt << setw(12)
+                << t << setw(12)
                 << progress << "\n";
             out.close();
         }

@@ -13,6 +13,10 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
     fecH1_v = new H1_FECollection(config.order, pmesh->Dimension());
     fespaceH1_v = new ParFiniteElementSpace(pmesh, fecH1_v, pmesh->Dimension());
 
+    //Size the array bdr conditions
+    ess_bdr_w.SetSize(pmesh->bdr_attributes.Max()); ess_bdr_w = 0;
+    ess_bdr_v.SetSize(pmesh->bdr_attributes.Max()); ess_bdr_v = 0;
+
     //Initialize linear variables
     vorticity.SetSpace(fespaceH1); vorticity = 0.;
     velocity.SetSpace(fespaceH1_v); velocity = 0.;
@@ -65,7 +69,7 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
 void EvolutionOperator::Setup(){
     //Set boundary dofs
     /****
-     * Define essential boundary conditions
+     * Define essential and robin boundary conditions
      *                 2
      *         /---------------\
      *         |               |
@@ -76,10 +80,12 @@ void EvolutionOperator::Setup(){
      *         \---------------/
      *                 0         
      ****/
-    ess_bdr.SetSize(pmesh->bdr_attributes.Max()); 
-    ess_bdr = 1; ess_bdr[3] = 0;
-    fespaceH1->GetEssentialTrueDofs(ess_bdr, ess_tdof);
-    fespaceH1_v->GetEssentialTrueDofs(ess_bdr, ess_tdof_v);
+
+    ess_bdr_w[3] = 1;
+    fespaceH1->GetEssentialTrueDofs(ess_bdr_w, ess_tdof_w);
+
+    ess_bdr_v = 1; ess_bdr_v[3] = 0;
+    fespaceH1_v->GetEssentialTrueDofs(ess_bdr_v, ess_tdof_v);
 
     //Set initial and boundary conditions
     FunctionCoefficient initial_vorticity([=](const Vector &x){
@@ -87,7 +93,7 @@ void EvolutionOperator::Setup(){
             }); 
     ConstantCoefficient Zero(0.); 
     vorticity.ProjectCoefficient(initial_vorticity);
-    vorticity.ProjectBdrCoefficient(Zero, ess_bdr);
+    vorticity.ProjectBdrCoefficient(Zero, ess_bdr_w);
     vorticity.GetTrueDofs(Vorticity);
 
     Vector zero_v(pmesh->Dimension()); zero_v = 0.;
@@ -107,7 +113,7 @@ void EvolutionOperator::Setup(){
     c.AddDomainIntegrator(new VectorDiffusionIntegrator(coeff_r));
     c.AddDomainIntegrator(new VectorMassIntegrator(coeff_inv_r_hat));
     c.Assemble();
-    c.EliminateEssentialBC(ess_bdr);
+    c.EliminateEssentialBC(ess_bdr_v);
     c.Finalize();
     C = c.ParallelAssemble();
 
@@ -133,7 +139,7 @@ void EvolutionOperator::Setup(){
     ParBilinearForm m(fespaceH1);
     m.AddDomainIntegrator(new MassIntegrator(coeff_r));
     m.Assemble();
-    m.EliminateEssentialBC(ess_bdr);
+    m.EliminateEssentialBC(ess_bdr_w);
     m.Finalize();
     M = m.ParallelAssemble();
 
@@ -181,6 +187,8 @@ void EvolutionOperator::SolveVelocity(){
     ScalarVectorProductCoefficient coeff_r_velocity(coeff_r, coeff_velocity);
     InnerProductCoefficient coeff_neg_vr(coeff_neg_r_hat, coeff_velocity);
 
+    FunctionCoefficient coeff_rbn([=](const Vector &x){return -config.Viscosity*x(0)/config.Lx;});
+
     if (K) delete K;
     ParBilinearForm k(fespaceH1);
     k.AddDomainIntegrator(new DiffusionIntegrator(coeff_nu_r));
@@ -188,7 +196,7 @@ void EvolutionOperator::SolveVelocity(){
     k.AddDomainIntegrator(new ConvectionIntegrator(coeff_r_velocity));
     k.AddDomainIntegrator(new MassIntegrator(coeff_neg_vr));
     k.Assemble();
-    k.EliminateEssentialBC(ess_bdr, Operator::DIAG_ZERO);
+    k.EliminateEssentialBC(ess_bdr_w, Operator::DIAG_ZERO);
     k.Finalize();
     K = k.ParallelAssemble();
 }
