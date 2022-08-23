@@ -19,13 +19,13 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
 
     //Initialize linear variables
     vorticity.SetSpace(fespaceH1); vorticity = 0.;
+    vorticity_v.SetSpace(fespaceH1); vorticity_v = 0.;
     velocity.SetSpace(fespaceH1_v); velocity = 0.;
-    vorticity_v.SetSpace(fespaceH1_v); vorticity_v = 0.;
     velocity_v.SetSpace(fespaceH1_v); velocity_v = 0.;
 
     Vorticity.SetSize(fespaceH1->GetTrueVSize()); Vorticity = 0.;
+    Vorticity_v.SetSize(fespaceH1->GetTrueVSize()); Vorticity_v = 0.;
     Velocity.SetSize(fespaceH1_v->GetTrueVSize()); Velocity = 0.;
-    Vorticity_v.SetSize(fespaceH1_v->GetTrueVSize()); Vorticity_v = 0.;
     Velocity_v.SetSize(fespaceH1_v->GetTrueVSize()); Velocity_v = 0.;
     Z.SetSize(fespaceH1->GetTrueVSize()); Z = 0.;
     B.SetSize(fespaceH1_v->GetTrueVSize()); B = 0.;
@@ -69,7 +69,7 @@ EvolutionOperator::EvolutionOperator(Config config, ParMesh *pmesh):
 void EvolutionOperator::Setup(){
     //Set boundary dofs
     /****
-     * Define essential and robin boundary conditions
+     * Define essential boundary conditions
      *                 2
      *         /---------------\
      *         |               |
@@ -105,7 +105,7 @@ void EvolutionOperator::Setup(){
     FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
     VectorFunctionCoefficient coeff_inv_r_hat(pmesh->Dimension(), [=](const Vector &x, Vector &f){
             f = 0.;
-            f(0) = pow(x(0)+config.Epsilon, -1);
+            f(1) = pow(x(0)+config.Epsilon, -1);
             });
     
     //Create bilinear forms for velocity solver
@@ -117,17 +117,11 @@ void EvolutionOperator::Setup(){
     c.Finalize();
     C = c.ParallelAssemble();
 
-    ParMixedBilinearForm d0(fespaceH1, fespaceH1_v);
-    d0.AddDomainIntegrator(new GradientIntegrator(coeff_r));
-    d0.Assemble();
-    d0.Finalize();
-    D0 = d0.ParallelAssemble();
-
-    ParBilinearForm d1(fespaceH1_v);
-    d1.AddDomainIntegrator(new VectorMassIntegrator);
-    d1.Assemble();
-    d1.Finalize();
-    D1 = d1.ParallelAssemble();
+    ParMixedBilinearForm d(fespaceH1, fespaceH1_v);
+    d.AddDomainIntegrator(new GradientIntegrator(coeff_r));
+    d.Assemble();
+    d.Finalize();
+    D = d.ParallelAssemble();
 
     C_prec.SetOperator(*C);
     C_solver.SetOperator(*C); 
@@ -157,14 +151,14 @@ void EvolutionOperator::Step(double &t, double &dt){
 void EvolutionOperator::SolveVelocity(){
     //Setup RHS vorticity-dependent
     UpdateVorticity();
-    VectorArrayCoefficient coeff_vorticity_v(pmesh->Dimension());
-    coeff_vorticity_v.Set(0, new GridFunctionCoefficient(&vorticity), true);
+    FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
+    GridFunctionCoefficient coeff_vorticity(&vorticity);
+    ProductCoefficient coeff_vorticity_v(coeff_r, coeff_vorticity);
     vorticity_v.ProjectCoefficient(coeff_vorticity_v);
     vorticity_v.GetTrueDofs(Vorticity_v);
 
     B = 0.;
-    D0->Mult(1., Vorticity, 1., B);
-    D1->Mult(1., Vorticity_v, 1., B);
+    D->Mult(1., Vorticity_v, 1., B);
     B.SetSubVector(ess_tdof_v, 0.);
 
     //Solve for the rotated velocity and get the true velocity
@@ -177,7 +171,6 @@ void EvolutionOperator::SolveVelocity(){
     velocity.GetTrueDofs(Velocity);
 
     //Update K matrix
-    FunctionCoefficient coeff_r([](const Vector &x){return x(0);});
     FunctionCoefficient coeff_nu_r([=](const Vector &x){return config.Viscosity*x(0);});
     FunctionCoefficient coeff_nu_inv_r([=](const Vector &x){return config.Viscosity*pow(x(0)+config.Epsilon, -1);});
     VectorFunctionCoefficient coeff_neg_r_hat(pmesh->Dimension(), [](const Vector &x, Vector &f){
@@ -241,6 +234,5 @@ EvolutionOperator::~EvolutionOperator(){
     delete K;
     delete T;
     delete C;
-    delete D0;
-    delete D1;
+    delete D;
 };

@@ -101,7 +101,7 @@ class EvolutionOperator : public TimeDependentOperator{
 
         //Bilinear variables
         HypreParMatrix *M = NULL, *K = NULL, *T = NULL;
-        HypreParMatrix *C = NULL, *D0 = NULL, *D1 = NULL;
+        HypreParMatrix *C = NULL, *D = NULL;
 
         //Solvers
         HyprePCG M_solver, C_solver;
