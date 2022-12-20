@@ -1,7 +1,7 @@
 include local_config.mk
 include settings/parameters.mk
 
-#Compiling parameters
+#Compiling parameterss
 CXX = mpic++
 FLAGS = -std=c++11 -O3 $(MFEM_FLAGS) $(PETSC_INC) $(SUNDIALS_INC)
 RUN = mpirun -np $(PROCCESORS) ./
